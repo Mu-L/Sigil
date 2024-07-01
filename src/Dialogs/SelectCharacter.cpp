@@ -376,7 +376,7 @@ void SelectCharacter::AddGrid(const QStringList &characters, int width)
             button->setToolTip(entity + " " + description);
             button->setText(display_text);
             button->setFont(font);
-            button->setFocusPolicy(Qt::StrongFocus);
+            button->setFocusPolicy(Qt::TabFocus);
             connect(button, SIGNAL(clicked()), m_buttonMapper, SLOT(map()));
             m_buttonMapper->setMapping(button, insert_text);
             grid->addWidget(button, row, col);
@@ -438,9 +438,5 @@ void SelectCharacter::WriteSettings()
 
 void SelectCharacter::connectSignalsSlots()
 {
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
-    connect(m_buttonMapper, SIGNAL(mapped(const QString &)), this, SLOT(SetSelectedCharacter(const QString &)));
-#else
     connect(m_buttonMapper, SIGNAL(mappedString(const QString &)), this, SLOT(SetSelectedCharacter(const QString &)));
-#endif
 }

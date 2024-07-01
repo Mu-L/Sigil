@@ -17,7 +17,7 @@ if( UNIX AND NOT APPLE )
     LIST( APPEND QRC_FILES Resource_Files/icon/app_icons_alt/app_icons.qrc )
 endif()
 
-set( PKGS_TO_FIND Core Core5Compat Network WebEngineCore WebEngineWidgets Svg Widgets Xml Concurrent PrintSupport LinguistTools )
+set( PKGS_TO_FIND Core Network WebEngineCore WebEngineWidgets Svg Widgets Xml Concurrent PrintSupport LinguistTools )
 if (APPLE)
     list( APPEND PKGS_TO_FIND UiTools )
 endif()
@@ -224,7 +224,7 @@ endif()
 
 # LIBS_TO_LINK for all platforms
 set( LIBS_TO_LINK ${HUNSPELL_LIBRARIES} ${PCRE2_LIBRARIES} ${GUMBO_LIBRARIES} ${MINIZIP_LIBRARIES}
-                  Qt6::Core5Compat Qt6::Widgets  Qt6::Xml  Qt6::PrintSupport  Qt6::WebEngineCore  
+                  Qt6::Widgets  Qt6::Xml  Qt6::PrintSupport  Qt6::WebEngineCore  
                   Qt6::WebEngineWidgets  Qt6::Network  Qt6::Concurrent Qt6::Svg)
 
 # Additions to LIBS_TO_LINK based on situation or platform
@@ -440,6 +440,20 @@ elseif (MSVC)
     if ( EXISTS ${UITOOLS} )
         add_custom_command( TARGET ${TARGET_FOR_COPY} POST_BUILD COMMAND cmake -E copy ${UITOOLS} ${MAIN_PACKAGE_DIR} )
     endif()
+
+    # Copy ICU libs. Windeployqt does not always pick up all three.
+    set( ICU_BIN_LIBS icudt icuin icuuc )
+    add_custom_command( TARGET ${TARGET_FOR_COPY} PRE_BUILD COMMAND cmake -E make_directory ${MAIN_PACKAGE_DIR}/ )
+    foreach( lib ${ICU_BIN_LIBS} )
+        # If the three are there (any version), copy them. Otherwise keep going without them.
+        file( GLOB ICU_LIB ${QT_INSTALL_BINS}/${lib}*.dll )
+        list( LENGTH ICU_LIB PATHS_LEN )
+        if( PATHS_LEN GREATER 0 )
+            foreach( ICU ${ICU_LIB} )
+                add_custom_command( TARGET ${TARGET_FOR_COPY} PRE_BUILD COMMAND cmake -E copy ${ICU} ${MAIN_PACKAGE_DIR}/ )
+            endforeach( ICU )
+        endif()
+    endforeach( lib )
 
     # Copy the translation qm files
     add_custom_command( TARGET ${TARGET_FOR_COPY} PRE_BUILD COMMAND cmake -E make_directory ${MAIN_PACKAGE_DIR}/translations/ )

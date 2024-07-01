@@ -41,7 +41,7 @@
 #include <QRegularExpressionMatch>
 #include <QRegularExpressionMatchIterator>
 #include <QString>
-#include <QStringRef>
+#include <QStringView>
 #include <QPointer>
 #include <QPrinter>
 #include <QApplication>
@@ -67,14 +67,6 @@
 #include "ViewEditors/CodeViewEditor.h"
 #include "ViewEditors/LineNumberArea.h"
 #include "sigil_constants.h"
-
-#if QT_VERSION >= QT_VERSION_CHECK(5, 15, 0)
-    #define QT_ENUM_SKIPEMPTYPARTS Qt::SkipEmptyParts
-    #define QT_ENUM_KEEPEMPTYPARTS Qt::KeepEmptyParts
-#else
-    #define QT_ENUM_SKIPEMPTYPARTS QString::SkipEmptyParts
-    #define QT_ENUM_KEEPEMPTYPARTS QString::KeepEmptyParts
-#endif
 
 const int PROGRESS_BAR_MINIMUM_DURATION = 1000;
 const QString BREAK_TAG_INSERT    = "<hr class=\"sigil_split_marker\" />";
@@ -691,12 +683,7 @@ int CodeViewEditor::CalculateLineNumberAreaWidth()
         num_digits++;
     }
 
-#if QT_VERSION >= QT_VERSION_CHECK(5, 11, 0)
     return LINE_NUMBER_MARGIN * 2 + fontMetrics().horizontalAdvance(QChar('0')) * num_digits;
-#else
-    return LINE_NUMBER_MARGIN * 2 + fontMetrics().width(QChar('0')) * num_digits;
-#endif
-
 }
 
 
@@ -2569,11 +2556,7 @@ void CodeViewEditor::ResetFont()
     // But just in case, say we want a fixed width font if font is not present
     font.setStyleHint(QFont::TypeWriter);
     setFont(font);
-#if QT_VERSION >= QT_VERSION_CHECK(5, 11, 0)
     setTabStopDistance(TAB_SPACES_WIDTH * QFontMetrics(font).horizontalAdvance(' '));
-#else
-    setTabStopWidth(TAB_SPACES_WIDTH * QFontMetrics(font).width(' '));
-#endif
     UpdateLineNumberAreaFont(font);
 }
 
@@ -2913,7 +2896,7 @@ void CodeViewEditor::FormatBlock(const QString &element_name, bool preserve_attr
             }
 
             // if we reached here we have an opening block tag we need to replace
-            QStringRef opening_tag_text(&text, ti.pos, ti.len);
+            QStringView opening_tag_text = QStringView(text).sliced(ti.pos, ti.len);
             QString all_attributes = TagLister::extractAllAttributes(opening_tag_text);
             
             // look for matching closing tag from here to the end
@@ -3232,7 +3215,7 @@ CodeViewEditor::StyleTagElement CodeViewEditor::GetSelectedStyleTagElement()
     
     int i = m_TagList.findLastTagOnOrBefore(pos);
     TagLister::TagInfo ti = m_TagList.at(i);
-    QStringRef tagstring(&text, ti.pos, ti.len);
+    QStringView tagstring = QStringView(text).sliced(ti.pos, ti.len);
     element.name = ti.tname;
 
     TagLister::AttInfo attr;
@@ -3382,7 +3365,7 @@ QString CodeViewEditor::ProcessAttribute(const QString &attribute_name,
         i--;
     }     
     if ((i < 0) || !tag_list.contains(ti.tname) || (ti.tname == "body")) return QString();
-    QStringRef opening_tag_text(&text, ti.pos, ti.len);
+    QStringView opening_tag_text = QStringView(text).sliced(ti.pos, ti.len);
 
     // Now look for the attribute, which may or may not already exist
     TagLister::AttInfo ainfo;
@@ -3783,7 +3766,7 @@ void CodeViewEditor::ApplyListToSelection(const QString &element)
         new_text = new_text.trimmed();
         // now split remaining text by new lines and 
         // remove any beginning and ending li tags
-        QStringList alist = new_text.split(QChar::ParagraphSeparator, QT_ENUM_SKIPEMPTYPARTS);
+        QStringList alist = new_text.split(QChar::ParagraphSeparator, Qt::SkipEmptyParts);
         QStringList result;
         foreach(QString aitem, alist) {
             result.append(indent + RemoveLastTag(RemoveFirstTag(aitem,"li"), "li"));
@@ -3792,7 +3775,7 @@ void CodeViewEditor::ApplyListToSelection(const QString &element)
         new_text = result.join("\n");
     }
     else if ((tagname == "p") || tagname.isEmpty()) {
-        QStringList alist = new_text.split(QChar::ParagraphSeparator, QT_ENUM_SKIPEMPTYPARTS);
+        QStringList alist = new_text.split(QChar::ParagraphSeparator, Qt::SkipEmptyParts);
         QStringList result;
         result.append(indent + "<" + element + ">");
         foreach(QString aitem, alist) {
@@ -3993,17 +3976,9 @@ void CodeViewEditor::ConnectSignalsToSlots()
     connect(this, SIGNAL(selectionChanged()), this, SLOT(ResetLastFindMatch()));
     connect(m_ScrollOneLineUp,   SIGNAL(activated()), this, SLOT(ScrollOneLineUp()));
     connect(m_ScrollOneLineDown, SIGNAL(activated()), this, SLOT(ScrollOneLineDown()));
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0) 
-    connect(m_spellingMapper, SIGNAL(mapped(const QString &)), this, SLOT(InsertText(const QString &)));
-    connect(m_addSpellingMapper, SIGNAL(mapped(const QString &)), this, SLOT(addToDefaultDictionary(const QString &)));
-    connect(m_addDictMapper, SIGNAL(mapped(const QString &)), this, SLOT(addToUserDictionary(const QString &)));
-    connect(m_ignoreSpellingMapper, SIGNAL(mapped(const QString &)), this, SLOT(ignoreWord(const QString &)));
-    connect(m_clipMapper, SIGNAL(mapped(const QString &)), this, SLOT(PasteClipEntryFromName(const QString &)));
-#else
     connect(m_spellingMapper, SIGNAL(mappedString(const QString &)), this, SLOT(InsertText(const QString &)));
     connect(m_addSpellingMapper, SIGNAL(mappedString(const QString &)), this, SLOT(addToDefaultDictionary(const QString &)));
     connect(m_addDictMapper, SIGNAL(mappedString(const QString &)), this, SLOT(addToUserDictionary(const QString &)));
     connect(m_ignoreSpellingMapper, SIGNAL(mappedString(const QString &)), this, SLOT(ignoreWord(const QString &)));
     connect(m_clipMapper, SIGNAL(mappedString(const QString &)), this, SLOT(PasteClipEntryFromName(const QString &)));
-#endif
 }

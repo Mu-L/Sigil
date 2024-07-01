@@ -84,7 +84,7 @@ CPCompare::CPCompare(const QString& bookroot,
     setWindowTitle(tr("Results of Comparison"));
     m_bp->setText(tr("Done"));
     m_bp->setToolButtonStyle(Qt::ToolButtonTextOnly);
-    m_bp->setFocusPolicy(Qt::StrongFocus);
+    m_bp->setFocusPolicy(Qt::TabFocus);
     QHBoxLayout *hl = new QHBoxLayout();
     hl->addWidget(m_dlist);
     hl->addWidget(m_alist);
@@ -180,11 +180,7 @@ void CPCompare::handle_mod_request()
 
             QApplication::setOverrideCursor(Qt::WaitCursor);
             QFuture<QList<DiffRecord::DiffRec>> bfuture =
-#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
-                QtConcurrent::run(&pr, &PythonRoutines::GenerateParsedNDiffInPython, leftpath, rightpath);
-#else
                 QtConcurrent::run(&PythonRoutines::GenerateParsedNDiffInPython, &pr, leftpath, rightpath);
-#endif
             bfuture.waitForFinished();
             QList<DiffRecord::DiffRec> diffinfo = bfuture.result();
             QApplication::restoreOverrideCursor();

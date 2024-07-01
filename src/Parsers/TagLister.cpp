@@ -1,6 +1,6 @@
 /************************************************************************
 **
-**  Copyright (C) 2020-2023 Kevin B. Hendricks, Stratford Ontario
+**  Copyright (C) 2020-2024 Kevin B. Hendricks, Stratford Ontario
 **
 **  This file is part of Sigil.
 **
@@ -23,11 +23,12 @@
 #include <QString>
 #include <QStringList>
 #include <QList>
-#include <QStringRef>
+#include <QStringView>
 #include <QDebug>
 
 #include "Misc/Utility.h"
 #include "Parsers/TagLister.h"
+#include "sigil_constants.h"
 
 
 // public interface
@@ -196,7 +197,7 @@ QString TagLister::serializeAttribute(const QString& aname, const QString &avalu
 }
 
 // static
-void TagLister::parseAttribute(const QStringRef &tagstring, const QString &attribute_name, AttInfo &ainfo)
+void TagLister::parseAttribute(const QStringView tagstring, const QString &attribute_name, AttInfo &ainfo)
 {
     QChar c = tagstring.at(1);
     int p = 0;
@@ -219,7 +220,7 @@ void TagLister::parseAttribute(const QStringRef &tagstring, const QString &attri
     // QString tagname = Utility::Substring(s, p, tagstring).trimmed();
 
     // handle the possibility of attributes (so begin or single tag type)
-    while (tagstring.indexOf("=", p) != -1) {
+    while (tagstring.indexOf(QChar('='), p) != -1) {
         p = skipAnyBlanks(tagstring, p);
         int s = p;
         p = stopWhenContains(tagstring, "=", p);
@@ -261,7 +262,7 @@ void TagLister::parseAttribute(const QStringRef &tagstring, const QString &attri
 
 //static
 // extracts a copy of all attributes if any exist o.w. returns empty string
-QString TagLister::extractAllAttributes(const QStringRef &tagstring)
+QString TagLister::extractAllAttributes(const QStringView tagstring)
 {
     int taglen = tagstring.length();
     QChar c = tagstring.at(1);
@@ -282,11 +283,11 @@ QString TagLister::extractAllAttributes(const QStringRef &tagstring)
 
     // if any attributes exist
     // Note: xml/xhtml does not support boolean attribute values without =)
-    if (tagstring.indexOf("=", p) == -1) return QString();
+    if (tagstring.indexOf(QChar('='), p) == -1) return QString();
     // properly handle both begin and single tags
     QString res = tagstring.mid(p, taglen - 1 - p).toString(); // skip ending '>'
     res = res.trimmed();
-    if (res.endsWith("/")) res = res.mid(0, res.length() - 1);
+    if (res.endsWith(QChar('/'))) res = res.mid(0, res.length() - 1);
     res = res.trimmed();
     return res;
 }
@@ -301,7 +302,7 @@ TagLister::TagInfo TagLister::getNext()
     mi.len = -1;
     mi.open_pos = -1;
     mi.open_len = -1;
-    QStringRef markup = parseML();
+    QStringView markup = parseML();
     while (!markup.isNull()) {
         if ((markup.at(0) == '<') && (markup.at(markup.size() - 1) == '>')) {
             mi.pos = m_pos;
@@ -335,15 +336,15 @@ TagLister::TagInfo TagLister::getNext()
 }
 
 
-QStringRef TagLister::parseML()
+QStringView TagLister::parseML()
 {
     int p = m_next;
     m_pos = p;
-    if (p >= m_source.length()) return QStringRef();
+    if (p >= m_source.length()) return QStringView();
     if (m_source.at(p) != '<') {
         // we have text leading up to a tag start
         m_next = findTarget("<", p+1);
-        return Utility::SubstringRef(m_pos, m_next, m_source);
+        return Utility::SubstringView(m_pos, m_next, m_source);
     }
     // we have a tag or special case
     // handle special cases first
@@ -351,12 +352,12 @@ QStringRef TagLister::parseML()
     if (tstart.startsWith("<!--")) {
         // include ending > as part of the string
         m_next = findTarget("-->", p+4, true);
-        return Utility::SubstringRef(m_pos, m_next, m_source);
+        return Utility::SubstringView(m_pos, m_next, m_source);
     }
     if (tstart.startsWith("<![CDATA[")) {
         // include ending > as part of the string
         m_next = findTarget("]]>", p+9, true);
-        return Utility::SubstringRef(m_pos, m_next, m_source);
+        return Utility::SubstringView(m_pos, m_next, m_source);
     }
     // include ending > as part of the string
     m_next = findTarget(">", p+1, true);
@@ -365,11 +366,11 @@ QStringRef TagLister::parseML()
     if ((ntb != -1) && (ntb < m_next)) {
         m_next = ntb;
     }
-    return Utility::SubstringRef(m_pos, m_next, m_source);
+    return Utility::SubstringView(m_pos, m_next, m_source);
 }
 
 
-void TagLister::parseTag(const QStringRef& tagstring, TagLister::TagInfo& mi)
+void TagLister::parseTag(const QStringView tagstring, TagLister::TagInfo& mi)
 {
     mi.len = tagstring.length();
     QChar c = tagstring.at(1);
@@ -377,7 +378,7 @@ void TagLister::parseTag(const QStringRef& tagstring, TagLister::TagInfo& mi)
     
     // first handle special cases
     if (c == '?') {
-        if (tagstring.startsWith("<?xml")) {
+        if (tagstring.startsWith(QL1SV("<?xml"))) {
             mi.tname = "?xml";
             mi.ttype = "xmlheader";
         } else {
@@ -387,13 +388,13 @@ void TagLister::parseTag(const QStringRef& tagstring, TagLister::TagInfo& mi)
         return;
     }
     if (c == '!') {
-        if (tagstring.startsWith("<!--")) {
+        if (tagstring.startsWith(QL1SV("<!--"))) {
             mi.tname = "!--";
             mi.ttype = "comment"; 
-        } else if (tagstring.startsWith("<!DOCTYPE") || tagstring.startsWith("<!doctype")) {
+        } else if (tagstring.startsWith(QL1SV("<!DOCTYPE")) || tagstring.startsWith(QL1SV("<!doctype"))) {
             mi.tname = "!DOCTYPE";
             mi.ttype = "doctype";
-        } else if (tagstring.startsWith("<![CDATA[") || tagstring.startsWith("<![cdata[")) {
+        } else if (tagstring.startsWith(QL1SV("<![CDATA[")) || tagstring.startsWith(QL1SV("<![cdata["))) {
             mi.tname = "![CDATA[";
             mi.ttype = "cdata";
         }
@@ -414,7 +415,7 @@ void TagLister::parseTag(const QStringRef& tagstring, TagLister::TagInfo& mi)
     // fill in tag type
     if (mi.ttype.isEmpty()) {
         mi.ttype = "begin";
-        if (tagstring.endsWith("/>") || tagstring.endsWith("/ >")) mi.ttype = "single";
+        if (tagstring.endsWith(QL1SV("/>")) || tagstring.endsWith(QL1SV("/ >"))) mi.ttype = "single";
     }
     return;
 }
@@ -430,14 +431,14 @@ int TagLister::findTarget(const QString &tgt, int p, bool after)
 }
 
 
-int TagLister::skipAnyBlanks(const QStringRef &tgt, int p)
+int TagLister::skipAnyBlanks(const QStringView tgt, int p)
 {
     while((p < tgt.length()) && (tgt.at(p) == ' ')) p++;
     return p;
 }
 
 
-int TagLister::stopWhenContains(const QStringRef &tgt, const QString& stopchars, int p)
+int TagLister::stopWhenContains(const QStringView tgt, const QString& stopchars, int p)
 {
     while((p < tgt.length()) && !stopchars.contains(tgt.at(p))) p++;
     return p;
